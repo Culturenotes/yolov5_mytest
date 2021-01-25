@@ -5,7 +5,7 @@ import numpy as np
 import requests
 import torch
 import torch.nn as nn
-from SoftPool import SoftPool2d
+from SoftPool import SoftPool2d,soft_pool2d
 
 from PIL import Image, ImageDraw
 
@@ -95,7 +95,7 @@ class SPP(nn.Module):
         c_ = c1 // 2  # hidden channels
         self.cv1 = Conv(c1, c_, 1, 1)
         self.cv2 = Conv(c_ * (len(k) + 1), c2, 1, 1)
-        self.m = nn.ModuleList([SoftPool2d(kernel_size=x, stride=1, padding=x // 2) for x in k])
+        self.m = nn.ModuleList([soft_pool2d(kernel_size=x, stride=1, padding=x // 2) for x in k])
 
     def forward(self, x):
         x = self.cv1(x)
