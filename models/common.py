@@ -17,7 +17,7 @@ from utils.plots import color_list
 class SoftPool2D(torch.nn.Module):
     def __init__(self,kernel_size,stride=None,padding=0,ceil_mode = False,count_include_pad = True,divisor_override = None):
         super(SoftPool2D, self).__init__()
-        self.avgpool = torch.nn.AvgPool2d(kernel_size,strides,padding,ceil_mode,count_include_pad,divisor_override)
+        self.avgpool = torch.nn.AvgPool2d(kernel_size,stride,padding,ceil_mode,count_include_pad,divisor_override)
     def forward(self, x):
         x_exp = torch.exp(x)
         x_exp_pool = self.avgpool(x_exp)
