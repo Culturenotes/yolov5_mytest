@@ -5,7 +5,7 @@ import numpy as np
 import requests
 import torch
 import torch.nn as nn
-from SoftPool import SoftPool2d,soft_pool2d
+#from SoftPool import SoftPool2d,soft_pool2d
 
 from PIL import Image, ImageDraw
 
@@ -13,6 +13,16 @@ from utils.datasets import letterbox
 from utils.general import non_max_suppression, make_divisible, scale_coords, xyxy2xywh
 from utils.plots import color_list
 
+
+class SoftPool2D(torch.nn.Module):
+    def __init__(self,kernel_size,strides=None,padding=0,ceil_mode = False,count_include_pad = True,divisor_override = None):
+        super(SoftPooling2D, self).__init__()
+        self.avgpool = torch.nn.AvgPool2d(kernel_size,strides,padding,ceil_mode,count_include_pad,divisor_override)
+    def forward(self, x):
+        x_exp = torch.exp(x)
+        x_exp_pool = self.avgpool(x_exp)
+        x = self.avgpool(x_exp*x)
+        return x/x_exp_pool
 
 def autopad(k, p=None):  # kernel, padding
     # Pad to 'same'
@@ -95,7 +105,7 @@ class SPP(nn.Module):
         c_ = c1 // 2  # hidden channels
         self.cv1 = Conv(c1, c_, 1, 1)
         self.cv2 = Conv(c_ * (len(k) + 1), c2, 1, 1)
-        self.m = nn.ModuleList([soft_pool2d(kernel_size=x, stride=1, padding=x // 2) for x in k])
+        self.m = nn.ModuleList([SoftPool2D(kernel_size=x, stride=1, padding=x // 2) for x in k])
 
     def forward(self, x):
         x = self.cv1(x)
