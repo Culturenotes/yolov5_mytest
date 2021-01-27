@@ -40,12 +40,12 @@ class CircleLoss(nn.Module):
 
         loss = self.soft_plus(torch.logsumexp(logit_n, dim=0) + torch.logsumexp(logit_p, dim=0))
 
-        if self.reduction == 'mean':
-            return loss.mean()
-        elif self.reduction == 'sum':
-            return loss.sum()
-        else:  # 'none'
-            return loss
+       # if self.reduction == 'mean':
+        #    return loss.mean()
+        #elif self.reduction == 'sum':
+        #    return loss.sum()
+      #  else:  # 'none'
+        return loss
 
 
 def smooth_BCE(eps=0.1):  # https://github.com/ultralytics/yolov3/issues/238#issuecomment-598028441
