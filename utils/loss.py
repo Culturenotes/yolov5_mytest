@@ -134,8 +134,8 @@ class ComputeLoss:
         h = model.hyp  # hyperparameters
 
         # Define criteria
-        BCEcls = CircleLoss(pos_weight=torch.tensor([h['cls_pw']], device=device))
-        BCEobj = CircleLoss(pos_weight=torch.tensor([h['obj_pw']], device=device))
+        BCEcls = CircleLoss(torch.tensor([h['cls_pw']], device=device))
+        BCEobj = CircleLoss(torch.tensor([h['obj_pw']], device=device))
 
         # Class label smoothing https://arxiv.org/pdf/1902.04103.pdf eqn 3
         self.cp, self.cn = smooth_BCE(eps=0.0)
