@@ -5,7 +5,7 @@ import numpy as np
 import requests
 import torch
 import torch.nn as nn
-#from SoftPool import SoftPool2d,soft_pool2d
+#from SoftPool import SoftPool2d
 
 from PIL import Image, ImageDraw
 
@@ -13,10 +13,9 @@ from utils.datasets import letterbox
 from utils.general import non_max_suppression, make_divisible, scale_coords, xyxy2xywh
 from utils.plots import color_list
 
-
-class SoftPool2D(torch.nn.Module):
+class SoftPool2d(torch.nn.Module):
     def __init__(self,kernel_size,stride=None,padding=0,ceil_mode = False,count_include_pad = True,divisor_override = None):
-        super(SoftPool2D, self).__init__()
+        super(SoftPool2d, self).__init__()
         self.avgpool = torch.nn.AvgPool2d(kernel_size,stride,padding,ceil_mode,count_include_pad,divisor_override)
     def forward(self, x):
         x_exp = torch.exp(x)
@@ -74,7 +73,7 @@ class BottleneckCSP(nn.Module):
         self.cv3 = nn.Conv2d(c_, c_, 1, 1, bias=False)
         self.cv4 = Conv(2 * c_, c2, 1, 1)
         self.bn = nn.BatchNorm2d(2 * c_)  # applied to cat(cv2, cv3)
-        self.act = nn.SiLU(inplace=True)
+        self.act = nn.LeakyReLU(0.1, inplace=True)
         self.m = nn.Sequential(*[Bottleneck(c_, c_, shortcut, g, e=1.0) for _ in range(n)])
 
     def forward(self, x):
@@ -105,7 +104,7 @@ class SPP(nn.Module):
         c_ = c1 // 2  # hidden channels
         self.cv1 = Conv(c1, c_, 1, 1)
         self.cv2 = Conv(c_ * (len(k) + 1), c2, 1, 1)
-        self.m = nn.ModuleList([SoftPool2D(kernel_size=x, stride=1, padding=x // 2) for x in k])
+        self.m = nn.ModuleList([SoftPool2d(kernel_size=x, stride=1, padding=x // 2) for x in k])
 
     def forward(self, x):
         x = self.cv1(x)
