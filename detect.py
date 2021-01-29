@@ -1,5 +1,6 @@
 import argparse
 import time
+import platform
 from pathlib import Path
 
 import cv2
@@ -67,8 +68,10 @@ def detect(save_img=False):
             img = img.unsqueeze(0)
 
         # Inference
-        t1 = time_synchronized()
-        pred = model(img, augment=opt.augment)[0]
+        with  torch.autograd.profiler.profile() as prof:
+            t1 = time_synchronized()
+            pred = model(img, augment=opt.augment)[0]
+        print(prof.key_averages().table(sort_by="self_cpu_time_total"))
 
         # Apply NMS
         pred = non_max_suppression(pred, opt.conf_thres, opt.iou_thres, classes=opt.classes, agnostic=opt.agnostic_nms)
