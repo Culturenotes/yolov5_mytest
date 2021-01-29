@@ -110,7 +110,7 @@ def train(hyp, opt, device, tb_writer=None, wandb=None):
             pg1.append(v.weight)  # apply decay
 
     if opt.ranger:
-        optimizer = Ranger(pg0, lr=hyp['lr0'], betas=(hyp['momentum'], 0.999), weight_decay=hyp["weight_decay"])  # adjust beta1 to momentum
+        optimizer = Ranger(pg0, lr=hyp['lr0'], betas=(hyp['momentum'], 0.999))  # adjust beta1 to momentum
     else:
         optimizer = optim.Adam(pg0, lr=hyp['lr0'], betas=(hyp['momentum'], 0.999))
 
