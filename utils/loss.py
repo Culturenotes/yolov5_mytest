@@ -134,8 +134,8 @@ class ComputeLoss:
         h = model.hyp  # hyperparameters
 
         # Define criteria
-        BCEcls = CircleLoss(*convert_label_to_similarity(torch.tensor([h['cls_pw']])), device=device)
-        BCEobj = CircleLoss(*convert_label_to_similarity(torch.tensor([h['obj_pw']])), device=device)
+        BCEcls = nn.BCEWithLogitsLoss(pos_weight=torch.tensor([h['cls_pw']]), device=device)
+        BCEobj = nn.BCEWithLogitsLoss(pos_weight=torch.tensor([h['obj_pw']]), device=device)
 
         # Class label smoothing https://arxiv.org/pdf/1902.04103.pdf eqn 3
         self.cp, self.cn = smooth_BCE(eps=0.0)
