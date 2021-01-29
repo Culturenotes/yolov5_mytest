@@ -1,51 +1,10 @@
 # Loss functions
-
 import torch
-import torch.nn as nn
 from typing import Tuple
-from torch import nn, Tensor
+from torch import nn
+import torch.nn.functional as F
 from utils.general import bbox_iou
 from utils.torch_utils import is_parallel
-
-
-def convert_label_to_similarity(normed_feature: Tensor, label: Tensor) -> Tuple[Tensor, Tensor]:
-    similarity_matrix = normed_feature @ normed_feature.transpose(1, 0)
-    label_matrix = label.unsqueeze(1) == label.unsqueeze(0)
-
-    positive_matrix = label_matrix.triu(diagonal=1)
-    negative_matrix = label_matrix.logical_not().triu(diagonal=1)
-
-    similarity_matrix = similarity_matrix.view(-1)
-    positive_matrix = positive_matrix.view(-1)
-    negative_matrix = negative_matrix.view(-1)
-    return similarity_matrix[positive_matrix], similarity_matrix[negative_matrix]
-
-
-class CircleLoss(nn.Module):
-    def __init__(self, m: float=0.25, gamma: float = 80) -> None:
-        super(CircleLoss, self).__init__()
-        self.m = m
-        self.gamma = gamma
-        self.soft_plus = nn.Softplus()
-
-    def forward(self, sp: Tensor, sn: Tensor) -> Tensor:
-        ap = torch.clamp_min(- sp.detach() + 1 + self.m, min=0.)
-        an = torch.clamp_min(sn.detach() + self.m, min=0.)
-
-        delta_p = 1 - self.m
-        delta_n = self.m
-
-        logit_p = - ap * (sp - delta_p) * self.gamma
-        logit_n = an * (sn - delta_n) * self.gamma
-
-        loss = self.soft_plus(torch.logsumexp(logit_n, dim=0) + torch.logsumexp(logit_p, dim=0))
-
-       # if self.reduction == 'mean':
-        #    return loss.mean()
-        #elif self.reduction == 'sum':
-        #    return loss.sum()
-      #  else:  # 'none'
-        return loss
 
 
 def smooth_BCE(eps=0.1):  # https://github.com/ultralytics/yolov3/issues/238#issuecomment-598028441
@@ -125,6 +84,40 @@ class QFocalLoss(nn.Module):
         else:  # 'none'
             return loss
 
+class CircleLoss(nn.Module):
+    def __init__(self, scale=174, margin=0.25, similarity='cos', **kwargs):
+        super(CircleLoss, self).__init__()
+        self.scale = scale
+        self.margin = margin
+        self.similarity = similarity
+
+    def forward(self, feats, labels):
+        assert feats.size(0) == labels.size(0), \
+            f"feats.size(0): {feats.size(0)} is not equal to labels.size(0): {labels.size(0)}"
+
+        m = labels.size(0)
+        mask = labels.expand(m, m).t().eq(labels.expand(m, m)).float()
+        pos_mask = mask.triu(diagonal=1)
+        neg_mask = (mask - 1).abs_().triu(diagonal=1)
+        if self.similarity == 'dot':
+            sim_mat = torch.matmul(feats, torch.t(feats))
+        elif self.similarity == 'cos':
+            feats = F.normalize(feats)
+            sim_mat = feats.mm(feats.t())
+        else:
+            raise ValueError('This similarity is not implemented.')
+
+        pos_pair_ = sim_mat[pos_mask == 1]
+        neg_pair_ = sim_mat[neg_mask == 1]
+
+        alpha_p = torch.relu(-pos_pair_ + 1 + self.margin)
+        alpha_n = torch.relu(neg_pair_ + self.margin)
+        margin_p = 1 - self.margin
+        margin_n = self.margin
+        loss_p = torch.sum(torch.exp(-self.scale * alpha_p * (pos_pair_ - margin_p)))
+        loss_n = torch.sum(torch.exp(self.scale * alpha_n * (neg_pair_ - margin_n)))
+        loss = torch.log(1 + loss_p * loss_n)
+        return loss
 
 class ComputeLoss:
     # Compute losses
@@ -143,7 +136,8 @@ class ComputeLoss:
         # Focal loss
         g = h['fl_gamma']  # focal loss gamma
         if g > 0:
-            BCEcls, BCEobj = FocalLoss(BCEcls, g), FocalLoss(BCEobj, g)
+           BCEcls, BCEobj = FocalLoss(BCEcls, g), FocalLoss(BCEobj, g)
+            #BCEcls, BCEobj = CircleLoss(BCEcls,g), CircleLoss(BCEobj,g)
 
         det = model.module.model[-1] if is_parallel(model) else model.model[-1]  # Detect() module
         self.balance = {3: [3.67, 1.0, 0.43], 4: [3.78, 1.0, 0.39, 0.22], 5: [3.88, 1.0, 0.37, 0.17, 0.10]}[det.nl]
