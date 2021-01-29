@@ -26,7 +26,7 @@ class CircleLoss(nn.Module):
         super(CircleLoss, self).__init__()
         self.m = m
         self.gamma = gamma
-        self.soft_plus = nn.Softplus(reduction='none')
+        self.soft_plus = nn.Softplus()
 
     def forward(self, sp: Tensor, sn: Tensor) -> Tensor:
         ap = torch.clamp_min(- sp.detach() + 1 + self.m, min=0.)
@@ -40,6 +40,11 @@ class CircleLoss(nn.Module):
 
         loss = self.soft_plus(torch.logsumexp(logit_n, dim=0) + torch.logsumexp(logit_p, dim=0))
 
+       # if self.reduction == 'mean':
+        #    return loss.mean()
+        #elif self.reduction == 'sum':
+        #    return loss.sum()
+      #  else:  # 'none'
         return loss
 
 
@@ -55,7 +60,7 @@ class BCEBlurWithLogitsLoss(nn.Module):
         self.loss_fcn = nn.BCEWithLogitsLoss(reduction='none')  # must be nn.BCEWithLogitsLoss()
         self.alpha = alpha
 
-    def forward(self, pred, true) -> Tensor:
+    def forward(self, pred, true):
         loss = self.loss_fcn(pred, true)
         pred = torch.sigmoid(pred)  # prob from logits
         dx = pred - true  # reduce only missing label effects
@@ -75,7 +80,7 @@ class FocalLoss(nn.Module):
         self.reduction = loss_fcn.reduction
         self.loss_fcn.reduction = 'none'  # required to apply FL to each element
 
-    def forward(self, pred, true) -> Tensor:
+    def forward(self, pred, true):
         loss = self.loss_fcn(pred, true)
         # p_t = torch.exp(-loss)
         # loss *= self.alpha * (1.000001 - p_t) ** self.gamma  # non-zero power for gradient stability
@@ -129,8 +134,8 @@ class ComputeLoss:
         h = model.hyp  # hyperparameters
 
         # Define criteria
-        BCEcls = nn.BCEWithLogitsLoss(pos_weight=torch.tensor([h['cls_pw']], device=device))
-        BCEobj = nn.BCEWithLogitsLoss(pos_weight=torch.tensor([h['obj_pw']], device=device))
+        BCEcls = CircleLoss(*convert_label_to_similarity(torch.tensor([h['cls_pw']])), device=device)
+        BCEobj = CircleLoss(*convert_label_to_similarity(torch.tensor([h['obj_pw']])), device=device)
 
         # Class label smoothing https://arxiv.org/pdf/1902.04103.pdf eqn 3
         self.cp, self.cn = smooth_BCE(eps=0.0)
