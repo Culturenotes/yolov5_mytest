@@ -7,7 +7,7 @@ import cv2
 import torch
 import torch.backends.cudnn as cudnn
 from numpy import random
-
+import numba as jit
 from models.experimental import attempt_load
 from utils.datasets import LoadStreams, LoadImages
 from utils.general import check_img_size, check_requirements, non_max_suppression, apply_classifier, scale_coords, \
@@ -15,7 +15,7 @@ from utils.general import check_img_size, check_requirements, non_max_suppressio
 from utils.plots import plot_one_box
 from utils.torch_utils import select_device, load_classifier, time_synchronized
 
-
+@jit
 def detect(save_img=False):
     source, weights, view_img, save_txt, imgsz = opt.source, opt.weights, opt.view_img, opt.save_txt, opt.img_size
     webcam = source.isnumeric() or source.endswith('.txt') or source.lower().startswith(
@@ -68,7 +68,7 @@ def detect(save_img=False):
             img = img.unsqueeze(0)
 
         # Inference
-        with  torch.autograd.profiler.profile() as prof:
+        with torch.autograd.profiler.profile() as prof:
             t1 = time_synchronized()
             pred = model(img, augment=opt.augment)[0]
         print(prof.key_averages().table(sort_by="self_cpu_time_total"))

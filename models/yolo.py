@@ -7,12 +7,14 @@ from pathlib import Path
 sys.path.append('./')  # to run '$ python *.py' files in subdirectories
 logger = logging.getLogger(__name__)
 
+import numba as jit
 from models.common import *
-from models.experimental import MixConv2d, CrossConv
+from models.experimental import *
 from utils.autoanchor import check_anchor_order
 from utils.general import make_divisible, check_file, set_logging
 from utils.torch_utils import time_synchronized, fuse_conv_and_bn, model_info, scale_img, initialize_weights, \
     select_device, copy_attr
+
 
 try:
     import thop  # for FLOPS computation
@@ -20,6 +22,7 @@ except ImportError:
     thop = None
 
 
+@jit
 class Detect(nn.Module):
     stride = None  # strides computed during build
     export = False  # onnx export
@@ -210,7 +213,7 @@ def parse_model(d, ch):  # model_dict, input_channels(3)
                 pass
 
         n = max(round(n * gd), 1) if n > 1 else n  # depth gain
-        if m in [Conv, Bottleneck, SPP, DWConv, MixConv2d, Focus, CrossConv, BottleneckCSP, C3]:
+        if m in [Conv, Bottleneck, SPP, DWConv, MixConv2d, Focus, CrossConv, BottleneckCSP, C3,C3_ghost, GhostBottleneck, SPPCSP]:
             c1, c2 = ch[f], args[0]
 
             # Normal
@@ -230,9 +233,8 @@ def parse_model(d, ch):  # model_dict, input_channels(3)
             #     c2 = int(ch1 * ex ** e)
             # if m != Focus:
             #     c2 = make_divisible(c2, 8) if c2 != no else c2
-
             args = [c1, c2, *args[1:]]
-            if m in [BottleneckCSP, C3]:
+            if m in [BottleneckCSP, C3,C3_ghost]:
                 args.insert(2, n)
                 n = 1
         elif m is nn.BatchNorm2d:
@@ -247,6 +249,10 @@ def parse_model(d, ch):  # model_dict, input_channels(3)
             c2 = ch[f if f < 0 else f + 1] * args[0] ** 2
         elif m is Expand:
             c2 = ch[f if f < 0 else f + 1] // args[0] ** 2
+        elif m is SALayer:
+            channel, groups = args[0], args[1]
+            channel = make_divisible(channel*gw, 8) if channel != no else channel
+            args = [channel, groups]
         else:
             c2 = ch[f if f < 0 else f + 1]
 
@@ -263,7 +269,7 @@ def parse_model(d, ch):  # model_dict, input_channels(3)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--cfg', type=str, default='yolov5s.yaml', help='model.yaml')
+    parser.add_argument('--cfg', type=str, default='yolov5s-ghost.yaml', help='model.yaml')
     parser.add_argument('--device', default='', help='cuda device, i.e. 0 or 0,1,2,3 or cpu')
     opt = parser.parse_args()
     opt.cfg = check_file(opt.cfg)  # check file
