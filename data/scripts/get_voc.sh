@@ -17,9 +17,11 @@ url=https://github.com/ultralytics/yolov5/releases/download/v1.0/
 f1=VOCtrainval_06-Nov-2007.zip # 446MB, 5012 images
 f2=VOCtest_06-Nov-2007.zip     # 438MB, 4953 images
 f3=VOCtrainval_11-May-2012.zip # 1.95GB, 17126 images
-for f in $f1 $f2 $f3; do
-  echo 'Downloading' $url$f ' ...' && curl -L $url$f -o $f && unzip -q $f -d $d && rm $f # download, unzip, remove
+for f in $f3 $f2 $f1; do
+  echo 'Downloading' $url$f '...' 
+  curl -L $url$f -o $f && unzip -q $f -d $d && rm $f & # download, unzip, remove in background
 done
+wait # finish background tasks
 
 end=$(date +%s)
 runtime=$((end - start))
@@ -32,12 +34,8 @@ import pickle
 import os
 from os import listdir, getcwd
 from os.path import join
-
 sets=[('2012', 'train'), ('2012', 'val'), ('2007', 'train'), ('2007', 'val'), ('2007', 'test')]
-
 classes = ["aeroplane", "bicycle", "bird", "boat", "bottle", "bus", "car", "cat", "chair", "cow", "diningtable", "dog", "horse", "motorbike", "person", "pottedplant", "sheep", "sofa", "train", "tvmonitor"]
-
-
 def convert(size, box):
     dw = 1./(size[0])
     dh = 1./(size[1])
@@ -50,7 +48,6 @@ def convert(size, box):
     y = y*dh
     h = h*dh
     return (x,y,w,h)
-
 def convert_annotation(year, image_id):
     in_file = open('VOCdevkit/VOC%s/Annotations/%s.xml'%(year, image_id))
     out_file = open('VOCdevkit/VOC%s/labels/%s.txt'%(year, image_id), 'w')
@@ -59,7 +56,6 @@ def convert_annotation(year, image_id):
     size = root.find('size')
     w = int(size.find('width').text)
     h = int(size.find('height').text)
-
     for obj in root.iter('object'):
         difficult = obj.find('difficult').text
         cls = obj.find('name').text
@@ -70,9 +66,7 @@ def convert_annotation(year, image_id):
         b = (float(xmlbox.find('xmin').text), float(xmlbox.find('xmax').text), float(xmlbox.find('ymin').text), float(xmlbox.find('ymax').text))
         bb = convert((w,h), b)
         out_file.write(str(cls_id) + " " + " ".join([str(a) for a in bb]) + '\n')
-
 wd = getcwd()
-
 for year, image_set in sets:
     if not os.path.exists('VOCdevkit/VOC%s/labels/'%(year)):
         os.makedirs('VOCdevkit/VOC%s/labels/'%(year))
@@ -82,30 +76,25 @@ for year, image_set in sets:
         list_file.write('%s/VOCdevkit/VOC%s/JPEGImages/%s.jpg\n'%(wd, year, image_id))
         convert_annotation(year, image_id)
     list_file.close()
-
 END
 
 cat 2007_train.txt 2007_val.txt 2012_train.txt 2012_val.txt >train.txt
 cat 2007_train.txt 2007_val.txt 2007_test.txt 2012_train.txt 2012_val.txt >train.all.txt
 
 python3 - "$@" <<END
-
 import shutil
 import os
 os.system('mkdir ../VOC/')
 os.system('mkdir ../VOC/images')
 os.system('mkdir ../VOC/images/train')
 os.system('mkdir ../VOC/images/val')
-
 os.system('mkdir ../VOC/labels')
 os.system('mkdir ../VOC/labels/train')
 os.system('mkdir ../VOC/labels/val')
-
 import os
 print(os.path.exists('../tmp/train.txt'))
 f = open('../tmp/train.txt', 'r')
 lines = f.readlines()
-
 for line in lines:
     line = "/".join(line.split('/')[-5:]).strip()
     if (os.path.exists("../" + line)):
@@ -115,12 +104,9 @@ for line in lines:
     line = line.replace('jpg', 'txt')
     if (os.path.exists("../" + line)):
         os.system("cp ../"+ line + " ../VOC/labels/train")
-
-
 print(os.path.exists('../tmp/2007_test.txt'))
 f = open('../tmp/2007_test.txt', 'r')
 lines = f.readlines()
-
 for line in lines:
     line = "/".join(line.split('/')[-5:]).strip()
     if (os.path.exists("../" + line)):
@@ -130,7 +116,6 @@ for line in lines:
     line = line.replace('jpg', 'txt')
     if (os.path.exists("../" + line)):
         os.system("cp ../"+ line + " ../VOC/labels/val")
-
 END
 
 rm -rf ../tmp # remove temporary directory
