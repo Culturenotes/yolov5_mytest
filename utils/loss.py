@@ -85,7 +85,7 @@ class QFocalLoss(nn.Module):
             return loss
 
 class VFLoss(nn.Module):
-    def __init__(self, loss_fcn, gamma=2.0, alpha=0.75):
+    def __init__(self, loss_fcn, gamma=1.5, alpha=0.25):
         super(VFLoss, self).__init__()
         self.loss_fcn = loss_fcn  #must be nn.BCEWithLogitsLoss()
         self.gamma = gamma
