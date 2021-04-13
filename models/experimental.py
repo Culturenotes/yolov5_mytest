@@ -6,7 +6,7 @@ import torch.nn as nn
 from torch.nn.parameter import Parameter
 from models.common import Conv, DWConv
 from utils.google_utils import attempt_download
-
+from utils.RFB import RepresentativeBatchNorm2d
 
 class SALayer(nn.Module):
     """Constructs a Channel Spatial Group module.
@@ -158,7 +158,8 @@ class MixConv2d(nn.Module):
             c_ = np.linalg.lstsq(a, b, rcond=None)[0].round()  # solve for equal weight indices, ax = b
 
         self.m = nn.ModuleList([nn.Conv2d(c1, int(c_[g]), k[g], s, k[g] // 2, bias=False) for g in range(groups)])
-        self.bn = nn.BatchNorm2d(c2)
+        #self.bn = nn.BatchNorm2d(c2)
+        self.bn = RepresentativeBatchNorm2d(c2)
         self.act = nn.LeakyReLU(0.1, inplace=True)
 
     def forward(self, x):
