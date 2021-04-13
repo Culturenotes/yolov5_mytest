@@ -16,6 +16,7 @@ from utils.general import non_max_suppression, make_divisible, scale_coords, inc
 from utils.plots import color_list, plot_one_box
 from utils.torch_utils import time_synchronized
 from utils.activations import DynamicReLU_B, FReLU, FRN
+from utils.RFB import RepresentativeBatchNorm2d
 
 def autopad(k, p=None):  # kernel, padding
     # Pad to 'same'
@@ -43,7 +44,8 @@ class Conv(nn.Module):
     def __init__(self, c1, c2, k=1, s=1, p=None, g=1, act=True):  # ch_in, ch_out, kernel, stride, padding, groups
         super(Conv, self).__init__()
         self.conv = nn.Conv2d(c1, c2, k, s, autopad(k, p), groups=g, bias=False)
-        self.bn = nn.BatchNorm2d(c2)
+        #self.bn = nn.BatchNorm2d(c2)
+        self.bn = RepresentativeBatchNorm2d(c2)
         #self.bn = FRN(c2)
         #self.act = nn.SiLU() if act is True else (act if isinstance(act, nn.Module) else nn.Identity())
         self.act = FReLU(c2) if act is True else (act if isinstance(act, nn.Module) else nn.Identity())
@@ -125,7 +127,8 @@ class BottleneckCSP(nn.Module):
         self.cv3 = nn.Conv2d(c_, c_, 1, 1, bias=False)
         self.cv4 = Conv(2 * c_, c2, 1, 1)
         # self.bn = nn.BatchNorm2d(2 * c_)  # applied to cat(cv2, cv3)
-        self.bn = FRN(2 * c_)  # applied to cat(cv2, cv3)
+        # self.bn = FRN(2 * c_)  # applied to cat(cv2, cv3)
+        self.bn = RepresentativeBatchNorm2d(2 * c_) # applied to cat(cv2, cv3)
         # self.act = nn.LeakyReLU(0.1, inplace=True)
         self.act = FReLU(2 * c_)
         self.m = nn.Sequential(*[Bottleneck(c_, c_, shortcut, g, e=1.0) for _ in range(n)])
